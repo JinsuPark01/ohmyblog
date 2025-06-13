@@ -16,6 +16,7 @@ DROP TABLE IF EXISTS likes CASCADE;
 DROP TABLE IF EXISTS comments CASCADE;
 DROP TABLE IF EXISTS posts CASCADE;
 DROP TABLE IF EXISTS categories CASCADE;
+DROP TABLE IF EXISTS calendar_memos CASCADE;
 
 -- 기존 Storage 버킷 정리
 DELETE FROM storage.objects WHERE bucket_id = 'blog-images';
@@ -105,6 +106,20 @@ CREATE TABLE likes (
 COMMENT ON TABLE likes IS '블로그 게시물 좋아요 테이블';
 COMMENT ON COLUMN likes.user_id IS 'Clerk 사용자 ID (TEXT 타입, auth.jwt()->>"sub" 기본값)';
 
+-- 3.5. 캘린더 메모 테이블
+CREATE TABLE calendar_memos (
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL DEFAULT (auth.jwt()->>'sub'), -- TEXT 타입으로 변경 및 기본값 설정
+    date DATE NOT NULL,
+    memo TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 캘린더 메모 테이블 주석
+COMMENT ON TABLE calendar_memos IS '사용자별 날짜 메모 저장 테이블';
+COMMENT ON COLUMN calendar_memos.memo IS '사용자가 입력한 날짜별 메모';
+
 -- ========================================
 -- 4. 인덱스 생성 (성능 최적화)
 -- ========================================
@@ -129,6 +144,10 @@ CREATE INDEX idx_likes_user_id ON likes(user_id);
 -- 카테고리 테이블 인덱스
 CREATE INDEX idx_categories_slug ON categories(slug);
 
+-- 캘린더 메모 인덱스
+CREATE INDEX idx_calendar_memos_user_id ON calendar_memos(user_id);
+CREATE INDEX idx_calendar_memos_date ON calendar_memos(date);
+
 -- ========================================
 -- 5. 트리거 함수 생성 (updated_at 자동 업데이트)
 -- ========================================
@@ -152,6 +171,9 @@ CREATE TRIGGER update_posts_updated_at BEFORE UPDATE ON posts
 CREATE TRIGGER update_comments_updated_at BEFORE UPDATE ON comments
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+CREATE TRIGGER update_calendar_memos_updated_at BEFORE UPDATE ON calendar_memos
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ========================================
 -- 6. 초기 데이터 삽입
 -- ========================================
@@ -173,9 +195,9 @@ DO $$
 BEGIN
     RAISE NOTICE '========================================';
     RAISE NOTICE '✅ 블로그 데이터베이스 스키마 생성 완료!';
-    RAISE NOTICE '📊 생성된 테이블: categories, posts, comments, likes';
+    RAISE NOTICE '📊 생성된 테이블: categories, posts, comments, likes, calendar_memos';
     RAISE NOTICE '🗄️ Storage 버킷: blog-images (공개)';
     RAISE NOTICE '🔐 Clerk Third-Party Auth 방식 적용';
     RAISE NOTICE '🎯 auth.jwt()->>"sub" 함수 활용 준비 완료';
     RAISE NOTICE '========================================';
-END $$; 
+END $$;

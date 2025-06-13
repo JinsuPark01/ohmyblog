@@ -5,11 +5,12 @@
  * 반응형 디자인과 접근성을 고려한 네비게이션 제공
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, X, PlusCircle } from 'lucide-react';
+import { Menu, X, PlusCircle, Moon, Sun } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs';
 import { Button } from '@/components/ui/button';
+import { useTheme } from 'next-themes';
 import {
   Sheet,
   SheetContent,
@@ -33,11 +34,19 @@ const navItems: NavItem[] = [
   { name: '블로그', href: '/posts', description: '블로그 글 목록 보기' },
   { name: '카테고리', href: '/categories', description: '카테고리별 글 보기' },
   { name: '소개', href: '/about', description: '블로그 소개 보기' },
+  { name: '내 일정', href: '/my-calendar', description: '개인 일정을 관리합니다.' }, // 새로 추가된 메뉴 항목
 ];
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isActivePath } = useCurrentPath();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  // 컴포넌트가 마운트된 후에만 렌더링
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /**
    * 모바일 메뉴 닫기 핸들러
@@ -97,6 +106,21 @@ export default function Header() {
 
           {/* 우측 액션 버튼들 */}
           <div className="flex items-center space-x-4">
+            {/* 테마 토글 버튼 */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="hidden md:flex"
+              aria-label="테마 변경"
+            >
+              {mounted && theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+
             {/* 인증 상태에 따른 버튼 */}
             <SignedIn>
               {/* 관리자 메뉴 - 새 글 작성 */}
@@ -195,6 +219,27 @@ export default function Header() {
                     ))}
                   </nav>
 
+                  {/* 모바일 테마 토글 버튼 */}
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    >
+                      {theme === 'dark' ? (
+                        <>
+                          <Sun className="h-4 w-4 mr-2" />
+                          라이트 모드로 변경
+                        </>
+                      ) : (
+                        <>
+                          <Moon className="h-4 w-4 mr-2" />
+                          다크 모드로 변경
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
                   {/* 모바일 관리자 메뉴 */}
                   <SignedIn>
                     <div className="mt-8 pt-6 border-t space-y-4">
@@ -255,4 +300,4 @@ export default function Header() {
       </header>
     </>
   );
-} 
+}

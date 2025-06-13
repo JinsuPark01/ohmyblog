@@ -194,3 +194,58 @@
     -webkit-line-clamp: none;
   }
 }
+
+/* Calendar Dark Mode Styles */
+.react-calendar.dark {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.react-calendar.dark .react-calendar__tile {
+  color: hsl(var(--foreground));
+}
+
+.react-calendar.dark .react-calendar__tile:enabled:hover,
+.react-calendar.dark .react-calendar__tile:enabled:focus {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.react-calendar.dark .react-calendar__tile--now {
+  background-color: hsl(var(--primary) / 0.2);
+  color: hsl(var(--primary));
+}
+
+.react-calendar.dark .react-calendar__tile--now:enabled:hover,
+.react-calendar.dark .react-calendar__tile--now:enabled:focus {
+  background-color: hsl(var(--primary) / 0.3);
+}
+
+.react-calendar.dark .react-calendar__tile--active {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.react-calendar.dark .react-calendar__tile--active:enabled:hover,
+.react-calendar.dark .react-calendar__tile--active:enabled:focus {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.react-calendar.dark .react-calendar__navigation button {
+  color: hsl(var(--foreground));
+}
+
+.react-calendar.dark .react-calendar__navigation button:enabled:hover,
+.react-calendar.dark .react-calendar__navigation button:enabled:focus {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+.react-calendar.dark .react-calendar__month-view__days__day--weekend {
+  color: hsl(var(--destructive));
+}
+
+.react-calendar.dark .react-calendar__month-view__days__day--neighboringMonth {
+  color: hsl(var(--muted-foreground));
+}

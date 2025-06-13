@@ -4,13 +4,13 @@
  * 실제 Supabase 데이터베이스와 연동
  */
 
-import { Suspense } from 'react';
+"use client";
+
+import { Suspense, useState, useEffect } from 'react';
 import { PostCard } from '@/components/blog/post-card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { Database } from '@/types/database.types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CalendarDays, User, Eye, ArrowRight } from 'lucide-react';
@@ -19,11 +19,38 @@ import { SignedIn, SignedOut } from '@clerk/nextjs';
 export const dynamic = "force-dynamic";
 
 // 타입 정의
-type Post = Database['public']['Tables']['posts']['Row'];
-type Category = Database['public']['Tables']['categories']['Row'];
+type Post = {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  cover_image_url: string;
+  view_count: number;
+  created_at: string;
+  content: string;
+  status: string;
+  author_id: string;
+  category_id: number;
+  updated_at: string;
+  categories?: {
+    id: number;
+    name: string;
+    slug: string;
+    color: string;
+    description: string;
+    created_at: string;
+    updated_at: string;
+  } | null;
+};
 
-type PostWithCategory = Post & {
-  categories?: Category | null;
+type Category = {
+  id: number;
+  name: string;
+  slug: string;
+  color: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
 };
 
 // 날짜 포맷팅 함수
@@ -36,117 +63,125 @@ function formatDate(dateString: string): string {
   });
 }
 
-// 최신 게시물 조회
-async function getLatestPosts(): Promise<PostWithCategory[]> {
-  try {
-    console.log('=== 홈페이지: 최신 게시물 조회 ===');
-    const supabase = await createServerSupabaseClient();
-
-    const { data: posts, error } = await supabase
-      .from('posts')
-      .select(`
-        id,
-        title,
-        slug,
-        excerpt,
-        cover_image_url,
-        view_count,
-        created_at,
-        content,
-        status,
-        author_id,
-        category_id,
-        updated_at,
-        categories (
-          id,
-          name,
-          slug,
-          color,
-          description,
-          created_at,
-          updated_at
-        )
-      `)
-      .eq('status', 'published')
-      .order('created_at', { ascending: false })
-      .limit(3);
-
-    if (error) {
-      console.error('최신 게시물 조회 오류:', error);
-      return [];
-    }
-
-    console.log(`✅ 최신 게시물 ${posts?.length || 0}개 조회 성공`);
-    return (posts || []).map(post => ({
-      ...post,
-      categories: Array.isArray(post.categories)
-        ? (post.categories[0] || null)
-        : post.categories ?? null,
-    }));
-  } catch (error) {
-    console.error('최신 게시물 조회 중 오류:', error);
-    return [];
+// 그라데이션 색상 옵션 정의
+const gradientOptions = [
+  {
+    name: '파란색',
+    gradient: 'from-blue-600 via-blue-500 to-blue-400',
+    colors: ['#2563eb', '#3b82f6', '#60a5fa']
+  },
+  {
+    name: '보라색',
+    gradient: 'from-purple-600 via-purple-500 to-purple-400',
+    colors: ['#9333ea', '#a855f7', '#c084fc']
+  },
+  {
+    name: '핑크색',
+    gradient: 'from-pink-600 via-pink-500 to-pink-400',
+    colors: ['#db2777', '#ec4899', '#f472b6']
+  },
+  {
+    name: '초록색',
+    gradient: 'from-green-600 via-green-500 to-green-400',
+    colors: ['#16a34a', '#22c55e', '#4ade80']
+  },
+  {
+    name: '주황색',
+    gradient: 'from-orange-600 via-orange-500 to-orange-400',
+    colors: ['#ea580c', '#f97316', '#fb923c']
   }
-}
+];
 
-// 카테고리 목록 조회
-async function getCategories(): Promise<Category[]> {
-  try {
-    console.log('=== 홈페이지: 카테고리 목록 조회 ===');
-    const supabase = await createServerSupabaseClient();
+export default function Home() {
+  const [selectedGradient, setSelectedGradient] = useState(gradientOptions[0]);
+  const [latestPosts, setLatestPosts] = useState<Post[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-    const { data: categories, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name', { ascending: true })
-      .limit(6); // 홈페이지에는 최대 6개만 표시
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [postsResponse, categoriesResponse] = await Promise.all([
+          fetch('/api/posts/latest'),
+          fetch('/api/categories')
+        ]);
 
-    if (error) {
-      console.error('카테고리 조회 오류:', error);
-      return [];
-    }
+        const postsData = await postsResponse.json();
+        const categoriesData = await categoriesResponse.json();
 
-    console.log(`✅ 카테고리 ${categories?.length || 0}개 조회 성공`);
-    return categories || [];
-  } catch (error) {
-    console.error('카테고리 조회 중 오류:', error);
-    return [];
-  }
-}
+        setLatestPosts(postsData.data || []);
+        setCategories(categoriesData.data || []);
+      } catch (error) {
+        console.error('데이터 로딩 중 오류:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-export default async function Home() {
-  // 서버 컴포넌트에서 데이터 조회
-  const [latestPosts, categories] = await Promise.all([
-    getLatestPosts(),
-    getCategories()
-  ]);
+    fetchData();
+  }, []);
 
   return (
     <div id="main-content" className="py-16">
       {/* Hero 섹션 */}
-      <section className="text-center mb-20">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-primary via-purple-600 to-blue-600 bg-clip-text text-transparent">
+      <section className="text-center mb-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-primary/10 to-background -z-10" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-background to-background -z-10" />
+        
+        <div className="max-w-4xl mx-auto px-4 py-20">
+          {/* 색상 선택 버튼들 */}
+          <div className="flex justify-center gap-2 mb-8">
+            {gradientOptions.map((option) => (
+              <button
+                key={option.name}
+                onClick={() => setSelectedGradient(option)}
+                className={`group relative p-2 rounded-full transition-all duration-200 hover:scale-110 ${
+                  selectedGradient.name === option.name ? 'ring-2 ring-offset-2 ring-primary' : ''
+                }`}
+                title={option.name}
+              >
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  <div className="w-full h-full bg-gradient-to-br" style={{
+                    background: `linear-gradient(135deg, ${option.colors[0]}, ${option.colors[1]}, ${option.colors[2]})`
+                  }} />
+                </div>
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                  {option.name}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <h1 
+            className={`text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r ${selectedGradient.gradient} bg-clip-text text-transparent transition-all duration-300`}
+            style={{
+              backgroundSize: '200% auto',
+              animation: 'gradient 3s ease infinite'
+            }}
+          >
             Welcome to My Blog
           </h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8 leading-relaxed">
+          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-12 leading-relaxed">
             웹 개발, JavaScript, React, Next.js에 관한 최신 기술과 실무 경험을 공유합니다. 
             함께 성장하는 개발자가 되어보세요.
           </p>
           
-          {/* CTA 버튼들 */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/posts"
-              className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg bg-primary px-8 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg"
+              className="group w-full sm:w-auto inline-flex items-center justify-center rounded-lg bg-primary px-8 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-md hover:shadow-lg"
             >
-              📚 블로그 글 읽기
+              <span className="mr-2">📚</span>
+              블로그 글 읽기
+              <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
             </Link>
             <Link
               href="/about"
-              className="w-full sm:w-auto inline-flex items-center justify-center rounded-lg border border-input bg-background px-8 py-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:shadow-md"
+              className="group w-full sm:w-auto inline-flex items-center justify-center rounded-lg border border-input bg-background px-8 py-3 text-sm font-medium hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:shadow-md"
             >
-              👋 소개 보기
+              <span className="mr-2">👋</span>
+              소개 보기
+              <span className="ml-2 group-hover:translate-x-1 transition-transform">→</span>
             </Link>
           </div>
         </div>
@@ -154,22 +189,29 @@ export default async function Home() {
 
       {/* 최신 게시물 섹션 */}
       <section className="mb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold">최신 게시물</h2>
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-8 bg-primary rounded-full" />
+              <h2 className="text-3xl font-bold">최신 게시물</h2>
+            </div>
             <Link
               href="/posts"
-              className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              className="group inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
               모든 글 보기
-              <ArrowRight className="ml-1 h-4 w-4" />
+              <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
-          {latestPosts.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            </div>
+          ) : latestPosts.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {latestPosts.map((post) => (
-                <Card key={post.id} className="group hover:shadow-lg transition-all duration-200">
+                <Card key={post.id} className="group hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
                   <CardHeader className="p-0">
                     {post.cover_image_url && (
                       <div className="aspect-video overflow-hidden rounded-t-lg">
@@ -256,20 +298,27 @@ export default async function Home() {
       </section>
 
       {/* 카테고리 섹션 */}
-      <section className="mb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold">카테고리</h2>
+      <section>
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-8 bg-primary rounded-full" />
+              <h2 className="text-3xl font-bold">카테고리</h2>
+            </div>
             <Link
               href="/categories"
-              className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+              className="group inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
             >
               모든 카테고리 보기
-              <ArrowRight className="ml-1 h-4 w-4" />
+              <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
 
-          {categories.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            </div>
+          ) : categories.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
               {categories.map((category) => (
                 <Link
@@ -277,9 +326,9 @@ export default async function Home() {
                   href={`/categories/${category.slug}`}
                   className="group"
                 >
-                  <Card className="text-center p-6 hover:shadow-md transition-all duration-200 group-hover:scale-105">
+                  <Card className="text-center p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1">
                     <div
-                      className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold"
+                      className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center text-white font-bold shadow-lg"
                       style={{ backgroundColor: category.color }}
                     >
                       {category.name.charAt(0)}
