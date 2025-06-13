@@ -101,18 +101,45 @@ export default function Home() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        console.log('🔄 데이터 로딩 시작...');
+        
         const [postsResponse, categoriesResponse] = await Promise.all([
           fetch('/api/posts/latest'),
           fetch('/api/categories')
         ]);
 
+        console.log('📥 API 응답 상태:', {
+          posts: postsResponse.status,
+          categories: categoriesResponse.status
+        });
+
         const postsData = await postsResponse.json();
         const categoriesData = await categoriesResponse.json();
 
+        console.log('📦 받은 데이터:', {
+          posts: JSON.stringify(postsData, null, 2),
+          categories: JSON.stringify(categoriesData, null, 2)
+        });
+
+        if (!postsData.success) {
+          console.error('❌ 게시물 데이터 로딩 실패:', postsData.error);
+        }
+
+        if (!categoriesData.success) {
+          console.error('❌ 카테고리 데이터 로딩 실패:', categoriesData.error);
+        }
+
+        // 데이터 설정 전에 로그 출력
+        console.log('📝 설정할 게시물 데이터:', postsData.data);
+        console.log('📝 설정할 카테고리 데이터:', categoriesData.data);
+
         setLatestPosts(postsData.data || []);
         setCategories(categoriesData.data || []);
+
+        // 데이터 설정 후 상태 확인
+        console.log('✅ 데이터 설정 완료');
       } catch (error) {
-        console.error('데이터 로딩 중 오류:', error);
+        console.error('❌ 데이터 로딩 중 오류:', error);
       } finally {
         setIsLoading(false);
       }

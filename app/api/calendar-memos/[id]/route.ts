@@ -1,25 +1,28 @@
-import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { NextRequest, NextResponse } from 'next/server';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  context: any // 타입 오류 우회
 ) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const supabase = createRouteHandlerClient({ cookies });
+
     const { error } = await supabase
       .from('calendar_memos')
       .delete()
-      .eq('id', params.id);
+      .eq('id', context.params.id);
 
     if (error) {
-      console.error('Supabase Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true }, { status: 200 });
+    return NextResponse.json({ message: 'Memo deleted successfully' });
   } catch (error) {
-    console.error('API Route Error:', error);
-    return NextResponse.json({ error: 'Failed to delete memo' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
   }
 } 
